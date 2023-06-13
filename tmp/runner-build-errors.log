@@ -1,0 +1,2 @@
+# build/api
+api\api-user.go:51:57: cannot use Company (variable of type []model.Company_info) as type []interface{} in argument to pkg.ReturnCompanyRespon
