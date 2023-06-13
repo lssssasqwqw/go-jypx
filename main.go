@@ -11,6 +11,8 @@ import (
 
 var DB *gorm.DB
 
+//wwwww
+
 func main() {
 	DB = config.SqlConnet()
 	DB.AutoMigrate(&model.Detail_pay_info{}) //数据库字段更新
