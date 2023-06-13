@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
+//22222222
+
 func Select(r *gin.Engine, D *gorm.DB) {
 	a := api.DataStruct{DB: D}
 	S := r.Group("/api/v1")
