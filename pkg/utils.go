@@ -53,91 +53,44 @@ func PostAllForm(c *gin.Context) map[string]interface{} {
 	return tmpParams2
 }
 
-// 路由响应格式化输出企业列表
-func ReturnCompanyRespon(pageNum int, pageSize int, Company []model.Company_info) map[string]interface{} {
+// 响应格式化输出企业列表
+func ReturnCompanyRespon(Company model.Company_info) (error, []map[string]interface{}) {
 
-	var message_ = make(map[string]interface{})
-	var data_all []interface{}
-	fmt.Println("pageNum;", pageNum)
-	fmt.Println("pageSize;", pageSize)
-	for i, C := range Company {
-		if i >= pageNum*pageSize || i < (pageNum-1)*pageSize {
-			continue
-		}
-
-		m, err := StructToMap(C)
-		if err != nil {
-			message_["code"] = -1
-			message_["data"] = make([]interface{}, 0)
-			message_["msg"] = "接口调用获取失败"
-			message_["page"] = map[string]int{
-				"pageNum":  pageNum,
-				"pageSize": 40,
-				"total":    len(Company),
-			}
-			return message_
-		} else {
-			var data_one []map[string]interface{}
-			for key, value := range m {
-				var field = make(map[string]interface{})
-				field["en_name"] = strings.ToLower(string(key[0])) + key[1:]
-				field["value"] = value
-				field["zh_name"] = nil
-				data_one = append(data_one, field)
-			}
-			data_all = append(data_all, data_one)
-		}
-	}
-	message_["code"] = 0
-	var dataa = make(map[string]interface{})
-	dataa["data"] = data_all
-	message_["data"] = map[string]interface{}{"data": data_all}
-	message_["msg"] = "成功"
-	message_["page"] = map[string]int{
-		"pageNum":  pageNum,
-		"pageSize": 40,
-		"total":    len(Company),
-	}
-	return message_
-}
-
-// 路由响应格式化输出人员列表
-func ReturnPersonRespon(pageNum int, pageSize int, Person []model.Person_info) map[string]interface{} {
-
-	fmt.Println("company_info:", len(Person))
-
-	var message_ = make(map[string]interface{})
-	var data_all []interface{}
-	logger.Info("pageNum;", pageNum)
-	logger.Info("pageSize;", pageSize)
-	for i, C := range Person {
-
-		fmt.Printf("i: %v", i)
-		t := reflect.TypeOf(C)
-		v := reflect.ValueOf(C)
+	m, err := StructToMap(Company)
+	if err != nil {
+		logger.Error("company结构体转map失败%v\n", err)
+		return err, []map[string]interface{}{}
+	} else {
 		var data_one []map[string]interface{}
-		for k := 0; k < t.NumField(); k++ {
-			Lname := strings.ToLower(string(t.Field(k).Name[0])) + string(t.Field(k).Name[1:])
+		for key, value := range m {
 			var field = make(map[string]interface{})
-			field["en_name"] = Lname
-			field["value"] = v.Field(k).Interface()
+			field["en_name"] = strings.ToLower(string(key[0])) + key[1:]
+			field["value"] = value
 			field["zh_name"] = nil
 			data_one = append(data_one, field)
 		}
-		data_all = append(data_all, data_one)
+		return nil, data_one
 	}
-	message_["code"] = 0
-	var dataa = make(map[string]interface{})
-	dataa["data"] = data_all
-	message_["data"] = map[string]interface{}{"data": data_all}
-	message_["msg"] = "成功"
-	ReturnPage := map[string]int{
-		"pageNum":  1,
-		"pageSize": 40,
-		"total":    len(Person),
+}
+
+// 响应格式化输出人员列表
+func ReturnPersonRespon(person model.Person_info) (error, []map[string]interface{}) {
+
+	m, err := StructToMap(person)
+	if err != nil {
+		logger.Error("person结构体转map失败v\n", err)
+		return err, []map[string]interface{}{}
+	} else {
+		var data_one []map[string]interface{}
+		for key, value := range m {
+			var field = make(map[string]interface{})
+			field["en_name"] = strings.ToLower(string(key[0])) + key[1:]
+			field["value"] = value
+			field["zh_name"] = nil
+			data_one = append(data_one, field)
+		}
+		return nil, data_one
 	}
-	message_["page"] = ReturnPage
-	return message_
 }
 
 // 路由响应格式化输出企业
@@ -148,33 +101,20 @@ func CompanyOne(apply_num string, com model.Company_info) []interface{} {
 	var data_all []interface{}
 	var data_one []interface{}
 
-	t := reflect.TypeOf(com)
-	v := reflect.ValueOf(com)
-
-	for k := 0; k < t.NumField(); k++ {
-
-		Lname := strings.ToLower(string(t.Field(k).Name[0])) + string(t.Field(k).Name[1:])
-
-		var field = make(map[string]interface{})
-		field["en_name"] = Lname
-		field["value"] = v.Field(k).Interface()
-		field["zh_name"] = nil
-		data_one = append(data_one, field)
-
+	m, err := StructToMap(com)
+	if err != nil {
+		logger.Error("解析出现错误%v\n", err)
+	} else {
+		for key, values := range m {
+			var field = make(map[string]interface{})
+			field["en_name"] = strings.ToLower(string(key[0])) + key[1:]
+			field["value"] = values
+			field["zh_name"] = nil
+			data_one = append(data_one, field)
+		}
 	}
 	data_all = append(data_all, data_one)
 	return data_all
-	// var message = make(map[string]interface{})
-	// message["code"] = 0
-	// // var dataa = make(map[string]interface{})
-	// // dataa["data"] = data_all
-	// message["data"] = map[string]interface{}{
-	// 	"companyInfoData": data_all,
-	// 	"apply_num":       apply_num,
-	// }
-	// message["msg"] = "成功"
-
-	// return message
 }
 
 // 路由响应格式化输出人员

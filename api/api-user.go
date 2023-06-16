@@ -5,9 +5,7 @@ import (
 	"build/model"
 	"build/pkg"
 	"fmt"
-
 	"github.com/gin-gonic/gin"
-
 	// "io/ioutil"
 	"net/http"
 	// "reflect"
@@ -21,6 +19,7 @@ type DataStruct struct {
 }
 
 func (con DataStruct) CompanyList(c *gin.Context) {
+	var res response
 	type company_ struct {
 		Apply_season    string         `json:"apply_season" form:"apply_season"`
 		C_person_result int            `json:"c_person_result" form:"c_person_result"`
@@ -42,15 +41,39 @@ func (con DataStruct) CompanyList(c *gin.Context) {
 		apply_season = pkg.GetApplyNum()
 	}
 
-	var Company []model.Company_info
+	var Companys []model.Company_info
 	if c_person_result == 2 {
-		con.DB.Where("c_person_result is null and c_apply_num like ?", "%"+apply_season+"%").Find(&Company)
+		con.DB.Where("c_person_result is null and c_apply_num like ?", "%"+apply_season+"%").Find(&Companys)
 	} else {
-		con.DB.Where("c_person_result = ? and c_apply_num like ?", c_person_result, "%"+apply_season+"%").Find(&Company)
+		con.DB.Where("c_person_result = ? and c_apply_num like ?", c_person_result, "%"+apply_season+"%").Find(&Companys)
 	}
-	message_ := pkg.ReturnCompanyRespon(pageNum, pageSize, Company)
-	c.JSON(http.StatusOK, message_)
-	logger.Error("-----------test---------------")
+
+	var data_all []interface{}
+
+	for i, C := range Companys {
+		if i >= pageNum*pageSize || i < (pageNum-1)*pageSize {
+			continue
+		}
+		err, data_one := pkg.ReturnCompanyRespon(C)
+		if err == nil {
+			data_all = append(data_all, data_one)
+		} else {
+			logger.Error("err:%v\n", err)
+			res.code = -1
+			res.msg = "失败"
+			res.data.data = make([]interface{}, 0)
+			c.JSON(http.StatusOK, res.StruToMap())
+			return
+		}
+	}
+	res.code = 0
+	res.data.data = data_all
+	res.page.pageNum = pageNum
+	res.page.total = len(data_all)
+	res.page.pageSize = 40
+	res.msg = "成功"
+
+	c.JSON(http.StatusOK, res.StruToMap())
 }
 
 // 检测数据
@@ -67,25 +90,59 @@ func (con DataStruct) CheckDataIsWrong(c *gin.Context) {
 
 // 获取企业下面成功，失败，预审人员详细数据
 func (con DataStruct) ApprovedList(c *gin.Context) {
-	type person_ struct {
+	var res response
+	type Params struct {
 		Apply_num string         `json:"apply_num" form:"apply_num"`
 		List_type string         `json:"list_type" form:"list_type"`
 		Page      map[string]int `json:"page" form:"page"`
 	}
-	params := &person_{}
+	params := &Params{}
 	if err := c.ShouldBind(&params); err == nil {
-		pageSize := params.Page["pageSize"]
-		pageNum := params.Page["pageNum"]
 		var person []model.Person_info
-		con.DB.Where("p_c_apply_num = ?", params.Apply_num).Find(&person)
-		message_ := pkg.ReturnPersonRespon(pageNum, pageSize, person)
-		c.JSON(http.StatusOK, message_)
+
+		logger.Error("params:%v", params)
+		pageSize := params.Page["pageSize"]
+		pageNum, ok := params.Page["pageNum"]
+		if !ok {
+			pageNum = 1
+		}
+		if params.List_type == "0" {
+			con.DB.Where("p_c_apply_num = ? and p_person_result is null ", params.Apply_num).Find(&person)
+		} else if params.List_type == "2" {
+			con.DB.Where("p_c_apply_num = ? and p_person_result = 0", params.Apply_num).Find(&person)
+		} else if params.List_type == "1" {
+			con.DB.Where("p_c_apply_num = ? and p_person_result = 1", params.Apply_num).Find(&person)
+		}
+		var data_all []interface{}
+		for i, p := range person {
+			if i >= pageNum*pageSize || i < (pageNum-1)*pageSize {
+				continue
+			}
+			err, data_one := pkg.ReturnPersonRespon(p)
+			if err != nil {
+				logger.Error("person结构体转map失败v\n", err)
+				res.code = -1
+				res.data.data = []interface{}{}
+				res.msg = "失败"
+				c.JSON(http.StatusOK, res.StruToMap())
+				return
+			} else {
+				data_all = append(data_all, data_one)
+			}
+		}
+		res.code = -1
+		res.data.data = data_all
+		res.msg = "成功"
+		res.page.pageNum = pageNum
+		res.page.total = len(data_all)
+		res.page.pageSize = 40
+		c.JSON(http.StatusOK, res.StruToMap())
+
 	} else {
-		message_ := make(map[string]interface{})
-		message_["code"] = -1
-		message_["data"] = make([]interface{}, 0)
-		message_["msg"] = "参数获取失败"
-		c.JSON(http.StatusOK, message_)
+		res.code = -1
+		res.data.data = []interface{}{}
+		res.msg = "参数获取失败"
+		c.JSON(http.StatusOK, res.StruToMap())
 	}
 }
 
@@ -160,7 +217,6 @@ func (con DataStruct) ApprovedCompany(c *gin.Context) {
 		Apply_num []string       `json:"apply_num"`
 		Content   map[string]int `json:"content"`
 	}
-
 	Carry := &CompanyCarry{}
 	if err := c.ShouldBind(Carry); err == nil {
 	} else {
